@@ -1,4 +1,4 @@
-#include <signal.h>
+#include<signal.h>
 #include<stdint.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
@@ -7,7 +7,6 @@
 #include<string.h>
 #include<stdlib.h>
 #include<unistd.h>
-#include<stdio.h>
 #include<errno.h>
 #include"HTTPlib.h"
 
@@ -19,7 +18,14 @@ sig_atomic_t is_running = 1;
 //         is_running = 0;
 //     }
 // }
+//
 
+void init_request_struct(HttpRequest *request){
+    request->file = (char *)malloc(MAX_BUF);
+}
+void free_request_struct(HttpRequest *request){
+    free(request->file);
+}
 int main(){
     int32_t serverfd, clientfd;
     int opt = 1, len;
@@ -52,13 +58,14 @@ int main(){
     //while(is_running){
         HttpRequest request;
         HttpResponse response;
+        init_request_struct(&request);
         //find a way to allocate memory for request.file
         if((clientfd = accept(serverfd, (struct sockaddr *)&client, &client_length)) < 0)
             die("accept", errno);
-        printf("Parsing request\n");
         parse_request(&request, clientfd, raw_data, len);
         build_response(&request, &response);
         send_response(clientfd, &response);
+        free_request_struct(&request);
     //}
     close(clientfd);
     close(serverfd);

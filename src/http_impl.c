@@ -29,10 +29,9 @@ int32_t read_raw_request(int fd, char *raw, uint16_t length){
     return count;
 }
 
-void get_Http_method(HttpRequest *request, const char *raw, uint16_t length, int *pos){
+void get_Http_method(HttpRequest *request, const char *raw, int *pos){
     char buff[MAX_BUF] = {0};
     while(raw[*pos] != ' ' && raw[*pos] != '\0' && *pos <= MAX_BUF){
-        printf("%d ", raw[*pos]);
         buff[*pos] = raw[*pos];
         ++(*pos);
     }
@@ -55,29 +54,43 @@ void get_Http_method(HttpRequest *request, const char *raw, uint16_t length, int
 }
 
 //this shouldnt be int32_t. It returns an 8-bit uint
-int32_t get_requested_file(HttpRequest *request, const char *raw, uint16_t length,int *pos, char* filename){
+int32_t get_requested_file(HttpRequest *request, const char *raw, uint16_t length,int *pos){
     //get_Http_method will point *pos one position behind the filename
     ++(*pos);
-    int8_t index = 0;
-
-    while(raw[*pos] != ' ' && raw[*pos] != '\0' && *pos <= length){
-        filename[index++] = raw[(*pos)++];
+    int8_t index = 0,
+           r_count = 0,
+           n_count = 0;
+    while(raw[*pos] != ' ' && *pos <= length){
+        request->file[index++] = raw[(*pos)++];
+        if(raw[*pos] == '\r')
+            r_count++;
+        else if(raw[*pos] == '\n')
+            n_count++;
+        //At every letter, r_count and n_count get assigned a zero. Not optimized?
+        else
+            r_count = n_count = 0;
+        if(r_count == 2 && n_count == r_count)
+            break;
     }
-    filename[index] = '\0';
-    return index; }
+    request->file[index] = '\0';
+    return index;
+}
 
 void parse_request(HttpRequest *request, const int fd, char *raw, uint16_t length){
     int32_t count, pos = 0;
-    char requested_file[256] = {0};
     count = read_raw_request(fd, raw, length);
+
     write(STDOUT_FILENO, raw, count);
     printf("%d\n", count);
-    get_Http_method(request, raw, length, &pos);
-    count = get_requested_file(request, raw, length, &pos, requested_file);
+
+    get_Http_method(request, raw, &pos);
+    count = get_requested_file(request, raw, length, &pos);
+    //
     // THIS FAILS. Make sure that the file pointer in the request struct points to writable memory
-    assert(0 && "Fix writable memory problem");
-    strncpy(request->file, requested_file, count);
+    //assert(0 && "Fix writable memory problem");
+    //
     printf("requested_file: %s\n", request->file);
+    //get_headers(request);
     return;
 }
 
@@ -98,6 +111,7 @@ void build_response(HttpRequest *request, HttpResponse *response){
         //     "</html>\n";
     return;
 }
+
 void send_response(int clientfd, HttpResponse *response){
     return;
 }

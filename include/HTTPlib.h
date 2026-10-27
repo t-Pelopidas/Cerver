@@ -34,8 +34,8 @@ typedef struct {
 
 void die(const char* function_name,int exit_code);
 int32_t read_raw_request(int fd, char *raw, uint16_t length);
-void get_Http_method(HttpRequest *request, const char *raw, uint16_t length, int *pos);
-int32_t get_requested_file(HttpRequest *request, const char *raw, uint16_t length,int *pos, char *filename);
+void get_Http_method(HttpRequest *request, const char *raw, int *pos);
+int32_t get_requested_file(HttpRequest *request, const char *raw, uint16_t length,int *pos);
 void parse_request(HttpRequest *request, const int fd, char* raw, uint16_t length);
 void build_response(HttpRequest *request, HttpResponse *response);
 void send_response(int clientfd, HttpResponse *response);
