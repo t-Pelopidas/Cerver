@@ -23,9 +23,10 @@ sig_atomic_t is_running = 1;
 void init_request_struct(HttpRequest *request){
     // TODO: maybe dynamically change the size of the array when reading the filename. Dont just allocate one max size block
     request->requested_file = (char *)malloc(MAX_BUF);
+    //
+    // TODO: Think more about how much memory each member of the struct gets. This is wasteful
+    request->http_version = (char *)malloc(MAX_BUF);
     request->header = (Header *)malloc(sizeof(Header));
-    //Allocate one block for the header. header->title is the head of the point and header->content = (header->title + strlen(header->title));
-    request->header->title = (char *)malloc(MAX_BUF);
 }
 
 void free_request_struct(HttpRequest *request){

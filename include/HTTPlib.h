@@ -6,19 +6,19 @@
 
 typedef uint8_t StatusCode;
 
-typedef enum{
+typedef enum Http_method{
     GET,
     POST,
     HEAD
-}HTTP_method;
+}Http_method;
 
 typedef struct Header{
     char *title;
     char *content;
 }Header;
 
-typedef struct {
-    HTTP_method method;
+typedef struct HttpRequest{
+    Http_method method;
     char *requested_file;
     uint16_t file_name_length;
     char *http_version;
@@ -27,7 +27,7 @@ typedef struct {
     uint8_t header_count;
 }HttpRequest;
 
-typedef struct {
+typedef struct HttpResponse{
     char *http_version;
     StatusCode status_code;
     Header *header;
@@ -44,3 +44,5 @@ void get_requested_headers(HttpRequest *request, const char *raw, int *pos);
 void build_response(HttpRequest *request, HttpResponse *response);
 void send_response(int clientfd, HttpResponse *response);
 void get_Http_version(HttpRequest *request, const char *raw, int *pos);
+void parse_header_title(HttpRequest *request, const char *raw, int *pos);
+void parse_header_content(HttpRequest *request, const char *raw, int *pos);

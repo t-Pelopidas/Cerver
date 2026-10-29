@@ -67,7 +67,7 @@ void get_Http_method(HttpRequest *request, const char *raw, int *pos){
         exit(-1);
         return;
     }
-    printf("%d\n", request->method);
+    printf("0:get, 1:post, 2:head { %d\n", request->method);
     return;
 }
 
@@ -97,39 +97,70 @@ void get_requested_file(HttpRequest *request, const char *raw, uint16_t length, 
 
 void get_Http_version(HttpRequest *request, const char *raw, int *pos){
     ++(*pos);
-    int r_count = 0, n_count = 0, index = 0;
+    uint8_t index = 0;
 
-    // isspace() variant
-    while(raw[*pos] != ' ' && raw[*pos]){
+    for(;;){
         request->http_version[index++] = raw[(*pos)++];
-
-        if(raw[*pos] == '\r')
-            r_count++;
-        else if(raw[*pos] == '\n')
-            n_count++;
-        //At every letter, r_count and n_count get assigned a zero. Not optimized?
-        else
-            r_count = n_count = 0;
-        if(r_count == 2 && n_count == r_count){
-            fprintf(stderr, "Something went wrong with the http version parsing.\nParsing ended before completing the parsing");
-            exit(-1);
+        if(raw[*pos] == '\r' && raw[(*pos)+1] == '\n'){
+            request->http_version[index] = '\0';
+            *pos += 2;
+            break;
         }
     }
 }
+void parse_header_title(HttpRequest *request, const char *raw, int *pos){
+    uint16_t index = 0;
+    while(1){
+        request->header->title[index++] = raw[(*pos)++];
+        if(raw[*pos] == ':'){
+            request->header->title[index] = '\0';
+            *pos +=2;
+            return;
+        }
+    }
+}
+
+void parse_header_content(HttpRequest *request, const char *raw, int *pos){
+    uint16_t index = 0;
+    while(1){
+        request->header->content[index++] = raw[(*pos)++];
+        if(raw[*pos] == '\r' && raw[(*pos)+1] == '\n'){
+            request->header->title[index] = '\0';
+            *pos +=2;
+            return;
+        }
+    }
+}
+
 void get_requested_headers(HttpRequest *request, const char *raw, int *pos){
     //initial malloc memory chunck
     uint16_t allocation_chunk = 512;
+    //Allocate one block for the header. header->title is the head of the point
+    //and header->content = (header->title + strlen(header->title));
+    //printf("title pointer: %p\n", request->header->title);
     request->header->title = (char *)malloc(allocation_chunk);
-    printf("title pointer: %p", request->header->title);
+    parse_header_title(request, raw, pos);
+    request->header->content = request->header->title + strlen(request->header->title);
+    printf("title: %p, content: %p, strlen: %zu\n", request->header->title, request->header->content, strlen(request->header->title));
+    parse_header_content(request, raw, pos);
+    //
+    //
+    //Some bullshit is going on here. The title sticks to the content when printed. idk if its a print issue though.
+    //Also the content isnt being parsed correctly. Its gets chopped at the ':' part of the 'Host' header.
+    printf("title: %s, content: %s\n", request->header->title, request->header->content);
     return;
 }
 void parse_request(HttpRequest *request, const char *raw, uint16_t length){
     int32_t pos = 0;
 
-    for(int i = 0; i < length; ++i){
-        printf("%x ", raw[i]);
-    }
-    printf("%d\n", length);
+    printf("%s\n", raw);
+    // uint16_t i = 0;
+    // while(raw[i] != 0){
+    //     printf("%x ", raw[i]);
+    //     if(raw[i] == '\n')
+    //         printf("\n");
+    //     ++i;
+    // }
 
     get_Http_method(request, raw, &pos);
     get_requested_file(request, raw, length, &pos);
@@ -139,6 +170,7 @@ void parse_request(HttpRequest *request, const char *raw, uint16_t length){
     //
     printf("requested_file: %s\n", request->requested_file);
     get_Http_version(request, raw, &pos);
+    printf("Http version: %s\n", request->http_version);
     get_requested_headers(request, raw, &pos);
     return;
 }
