@@ -21,20 +21,27 @@ sig_atomic_t is_running = 1;
 //
 
 void init_request_struct(HttpRequest *request){
-    request->file = (char *)malloc(MAX_BUF);
+    // TODO: maybe dynamically change the size of the array when reading the filename. Dont just allocate one max size block
+    request->requested_file = (char *)malloc(MAX_BUF);
+    request->header = (Header *)malloc(sizeof(Header));
+    //Allocate one block for the header. header->title is the head of the point and header->content = (header->title + strlen(header->title));
+    request->header->title = (char *)malloc(MAX_BUF);
 }
+
 void free_request_struct(HttpRequest *request){
-    free(request->file);
+    free(request->requested_file);
+    free(request->header);
 }
+
 int main(){
     int32_t serverfd, clientfd;
-    int opt = 1, len;
+    int opt = 1, count;
     struct sockaddr_in client, server;
-    char raw_data[MAX_BUF] = {0};
+    char raw_request[MAX_BUF] = {0};
 
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = inet_addr("192.168.1.100"); //CHANGE THIS TO A SPECIFIC ADDRESS
+    server.sin_addr.s_addr = inet_addr("127.0.0.1"); //CHANGE THIS TO A SPECIFIC ADDRESS
     server.sin_port = htons(PORT);
     ///
     /// socket
@@ -57,14 +64,14 @@ int main(){
 
     //while(is_running){
         HttpRequest request;
-        HttpResponse response;
         init_request_struct(&request);
         //find a way to allocate memory for request.file
         if((clientfd = accept(serverfd, (struct sockaddr *)&client, &client_length)) < 0)
             die("accept", errno);
-        parse_request(&request, clientfd, raw_data, len);
-        build_response(&request, &response);
-        send_response(clientfd, &response);
+        count = read_raw_request(clientfd, raw_request, MAX_BUF);
+        parse_request(&request, raw_request, count);
+        // build_response(&request, &response);
+        // send_response(clientfd, &response);
         free_request_struct(&request);
     //}
     close(clientfd);
