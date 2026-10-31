@@ -7,6 +7,10 @@
 #include<string.h>
 #include"HTTPlib.h"
 
+
+#define IS_END(r, p)             (\
+    r[p] == '\r' && r[p+1] == '\n'\
+)
 void die(const char* function_name,int exit_code){
     perror(function_name);
     exit(exit_code);
@@ -26,7 +30,6 @@ void print_request(HttpRequest *r){
     }
     for(uint8_t i = 0; i < r->header_count; ++i){
         printf("%s:%s", r->header->title, r->header->content); }
-
 }
 
 
@@ -70,14 +73,13 @@ void get_Http_method(HttpRequest *request, const char *raw, int *pos){
     printf("0:get, 1:post, 2:head { %d\n", request->method);
     return;
 }
-
 //this function shouldnt be int32_t. It returns an 8-bit uint
 void get_requested_file(HttpRequest *request, const char *raw, uint16_t length, int *pos){
     //get_Http_method will point *pos one position behind the filename
     ++(*pos);
     int16_t index = 0,
-           r_count = 0,
-           n_count = 0;
+            r_count = 0,
+            n_count = 0;
     while(raw[*pos] != ' ' && *pos <= length){
         request->requested_file[index++] = raw[(*pos)++];
 
@@ -101,7 +103,7 @@ void get_Http_version(HttpRequest *request, const char *raw, int *pos){
 
     for(;;){
         request->http_version[index++] = raw[(*pos)++];
-        if(raw[*pos] == '\r' && raw[(*pos)+1] == '\n'){
+        if(IS_END(raw, *pos)){
             request->http_version[index] = '\0';
             *pos += 2;
             break;
@@ -110,44 +112,64 @@ void get_Http_version(HttpRequest *request, const char *raw, int *pos){
 }
 void parse_header_title(HttpRequest *request, const char *raw, int *pos){
     uint16_t index = 0;
-    while(1){
+    while(raw[*pos] != ':'){
         request->header->title[index++] = raw[(*pos)++];
-        if(raw[*pos] == ':'){
-            request->header->title[index] = '\0';
-            *pos +=2;
-            return;
-        }
     }
+    // When the last character is set to '\0', it gets replaced. When set to any other, it doesnt
+    request->header->title[index] = '\0';
+    (*pos) += 2;
+    return;
 }
 
 void parse_header_content(HttpRequest *request, const char *raw, int *pos){
     uint16_t index = 0;
-    while(1){
+    while(raw[*pos] != '\r'){
         request->header->content[index++] = raw[(*pos)++];
-        if(raw[*pos] == '\r' && raw[(*pos)+1] == '\n'){
-            request->header->title[index] = '\0';
-            *pos +=2;
-            return;
-        }
     }
+    (*pos) += 2;
+    return;
 }
 
 void get_requested_headers(HttpRequest *request, const char *raw, int *pos){
     //initial malloc memory chunck
-    uint16_t allocation_chunk = 512;
-    //Allocate one block for the header. header->title is the head of the point
-    //and header->content = (header->title + strlen(header->title));
-    //printf("title pointer: %p\n", request->header->title);
-    request->header->title = (char *)malloc(allocation_chunk);
-    parse_header_title(request, raw, pos);
-    request->header->content = request->header->title + strlen(request->header->title);
-    printf("title: %p, content: %p, strlen: %zu\n", request->header->title, request->header->content, strlen(request->header->title));
-    parse_header_content(request, raw, pos);
+    uint16_t per_header_allocation_chuck = 64, total_memory_allocated = per_header_allocation_chuck;
+    uint8_t current;
+    //Allocate one block for the header. header[i]->title is the head of the point
+    request->header_count = 1;
+    if((request->header = (Header *)malloc(sizeof(Header))) == NULL){
+        printf("Allocation failed\n");
+        die("malloc", errno);
+    }
+    // TODO: When reallocating request->header, the contents dont follow.
     //
-    //
-    //Some bullshit is going on here. The title sticks to the content when printed. idk if its a print issue though.
-    //Also the content isnt being parsed correctly. Its gets chopped at the ':' part of the 'Host' header.
-    printf("title: %s, content: %s\n", request->header->title, request->header->content);
+    // Maybe implement a linked list for the headers
+    // Maybe implement a linked list for the headers
+    // Maybe implement a linked list for the headers
+    while(per_header_allocation_chuck < 16384 && total_memory_allocated < 32768){
+        current = request->header_count - 1;
+        if((request->header[current].title = (char *)malloc(per_header_allocation_chuck)) == NULL){
+            printf("Allocation returned a null pointer\n");
+            die("malloc", errno);
+        }
+
+        parse_header_title(request, raw, pos);
+        request->header[current].content = request->header[current].title + strlen(request->header[current].title) + 1; /* +1 so the null byte doenst get written over */
+        parse_header_content(request, raw, pos);
+
+        if (IS_END(raw, *pos))
+            break;
+
+        ++request->header_count;
+        // realloc throws an "invalid next size" error on 3rd allocation
+        void *newptr;
+        if((newptr = realloc(request->header, request->header_count*sizeof(Header)))){
+            request->header = newptr;
+        }
+        else {
+            printf("Reallocation returned a null pointer\n");
+            die("realloc", errno);
+        }
+    }
     return;
 }
 void parse_request(HttpRequest *request, const char *raw, uint16_t length){
@@ -171,25 +193,22 @@ void parse_request(HttpRequest *request, const char *raw, uint16_t length){
     printf("requested_file: %s\n", request->requested_file);
     get_Http_version(request, raw, &pos);
     printf("Http version: %s\n", request->http_version);
-    get_requested_headers(request, raw, &pos);
+    //
+    //If there are header files
+    if(!IS_END(raw, pos)){
+        get_requested_headers(request, raw, &pos);
+        for(int i = 0; i < request->header_count; ++i){
+            printf("%s: %s\n", request->header->title, request->header->content);
+        }
+    }
+    else{
+        request->header = NULL;
+        request->header_count = 0;
+    }
     return;
 }
 
 // void build_response(HttpRequest *request, HttpResponse *response){
-//         server_response =
-//             "HTTP/1.0 200 OK\r\n"
-//             "Content-Type: text/html; charset=utf-8\r\n"
-//             "Content-Length: 126\r\n"
-//             "Connection: close\r\n"
-//             "\r\n"
-//             "<!DOCTYPE html>\n"
-//             "<html>\n"
-//             "<head><title>Cerver</title></head>\n"
-//             "<body>\n"
-//             "<h1>It works!</h1>\n"
-//             "<p>Hello from Cerver.</p>\n"
-//             "</body>\n"
-//             "</html>\n";
 //     return;
 // }
 

@@ -23,7 +23,7 @@ $(TARGET): $(OBJS)
 
 # Compile source files into object files, requiring the build directory to exist
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ -g
 
 # Create the build directory if it doesn't exist
 $(BUILD_DIR):

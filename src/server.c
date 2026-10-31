@@ -1,3 +1,4 @@
+#include<stdio.h>
 #include<signal.h>
 #include<stdint.h>
 #include<sys/socket.h>
@@ -23,10 +24,17 @@ sig_atomic_t is_running = 1;
 void init_request_struct(HttpRequest *request){
     // TODO: maybe dynamically change the size of the array when reading the filename. Dont just allocate one max size block
     request->requested_file = (char *)malloc(MAX_BUF);
+    if(request->requested_file == NULL){
+        printf("Allocation failed\n");
+        die("malloc", errno);
+    }
     //
     // TODO: Think more about how much memory each member of the struct gets. This is wasteful
     request->http_version = (char *)malloc(MAX_BUF);
-    request->header = (Header *)malloc(sizeof(Header));
+    if(request->http_version == NULL){
+        printf("Allocation failed\n");
+        die("malloc", errno);
+    }
 }
 
 void free_request_struct(HttpRequest *request){
@@ -64,16 +72,16 @@ int main(){
     // signal(SIGINT, handle_shutdown);
 
     //while(is_running){
-        HttpRequest request;
-        init_request_struct(&request);
-        //find a way to allocate memory for request.file
-        if((clientfd = accept(serverfd, (struct sockaddr *)&client, &client_length)) < 0)
-            die("accept", errno);
-        count = read_raw_request(clientfd, raw_request, MAX_BUF);
-        parse_request(&request, raw_request, count);
-        // build_response(&request, &response);
-        // send_response(clientfd, &response);
-        free_request_struct(&request);
+    HttpRequest request;
+    init_request_struct(&request);
+    //find a way to allocate memory for request.file
+    if((clientfd = accept(serverfd, (struct sockaddr *)&client, &client_length)) < 0)
+        die("accept", errno);
+    count = read_raw_request(clientfd, raw_request, MAX_BUF);
+    parse_request(&request, raw_request, count);
+    // build_response(&request, &response);
+    // send_response(clientfd, &response);
+    free_request_struct(&request);
     //}
     close(clientfd);
     close(serverfd);
