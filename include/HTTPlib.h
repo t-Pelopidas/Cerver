@@ -15,6 +15,7 @@ typedef enum Http_method{
 typedef struct Header{
     char *title;
     char *content;
+    struct Header *next_header;
 }Header;
 
 typedef struct HttpRequest{
@@ -24,7 +25,7 @@ typedef struct HttpRequest{
     char *http_version;
     Header *header;
     Header *content_type;
-    uint8_t header_count;
+    [[maybe_unused]] uint8_t header_count; // maybe unused
 }HttpRequest;
 
 typedef struct HttpResponse{
@@ -44,5 +45,5 @@ void get_requested_headers(HttpRequest *request, const char *raw, int *pos);
 void build_response(HttpRequest *request, HttpResponse *response);
 void send_response(int clientfd, HttpResponse *response);
 void get_Http_version(HttpRequest *request, const char *raw, int *pos);
-void parse_header_title(HttpRequest *request, const char *raw, int *pos);
-void parse_header_content(HttpRequest *request, const char *raw, int *pos);
+void parse_header_title(Header *header, const char *raw, int *pos);
+void parse_header_content(Header *header, const char *raw, int *pos);
