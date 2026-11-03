@@ -3,6 +3,7 @@
 #define MAX_CONNECTIONS 1
 #define PORT 8000
 #define MAX_BUF 512
+#define MAX_HTTP_BUF 16384
 
 typedef uint8_t StatusCode;
 
@@ -25,7 +26,7 @@ typedef struct HttpRequest{
     char *http_version;
     Header *header;
     Header *content_type;
-    [[maybe_unused]] uint8_t header_count; // maybe unused
+    uint8_t header_count; // maybe unused
 }HttpRequest;
 
 typedef struct HttpResponse{
@@ -36,14 +37,15 @@ typedef struct HttpResponse{
 }HttpResponse;
 
 void die(const char* function_name,int exit_code);
-void parse_request(HttpRequest *request, const char *raw, uint16_t length);
+
 int32_t read_raw_request(int fd, char *raw, uint16_t length);
+void parse_request(HttpRequest *request, const char *raw, uint16_t length);
+void parse_header_title(Header *header, const char *raw, int *pos, uint16_t *per_header_allocation_chuck);
+void parse_header_content(Header *header, const char *raw, int *pos, uint16_t *per_header_allocation_chuck);
 void get_Http_method(HttpRequest *request, const char *raw, int *pos);
-void get_requested_file(HttpRequest *request, const char *raw, uint16_t length, int *pos);
+void get_request_file(HttpRequest *request, const char *raw, uint16_t length, int *pos);
 void get_request_http_version(HttpRequest *request, const char *raw);
-void get_requested_headers(HttpRequest *request, const char *raw, int *pos);
+void get_request_headers(HttpRequest *request, const char *raw, int *pos);
+void get_Http_version(HttpRequest *request, const char *raw, int *pos);
 void build_response(HttpRequest *request, HttpResponse *response);
 void send_response(int clientfd, HttpResponse *response);
-void get_Http_version(HttpRequest *request, const char *raw, int *pos);
-void parse_header_title(Header *header, const char *raw, int *pos);
-void parse_header_content(Header *header, const char *raw, int *pos);

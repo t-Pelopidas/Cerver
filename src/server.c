@@ -39,14 +39,28 @@ void init_request_struct(HttpRequest *request){
 
 void free_request_struct(HttpRequest *request){
     free(request->requested_file);
-    free(request->header);
+
+    //free all the headers
+    Header *r = request->header;
+    void *t;
+    while(r != NULL){
+        t = r->next_header;
+        free(r->title);
+        free(r);
+        r = t;
+    }
+    free(request->http_version);
+    if(request->content_type != NULL){
+        free(request->content_type->title);
+        free(request->content_type);
+    }
 }
 
 int main(){
     int32_t serverfd, clientfd;
     int opt = 1, count;
     struct sockaddr_in client, server;
-    char raw_request[MAX_BUF] = {0};
+    char raw_request[MAX_HTTP_BUF] = {0};
 
     memset(&server, 0, sizeof(server));
     server.sin_family = AF_INET;
@@ -77,7 +91,7 @@ int main(){
     //find a way to allocate memory for request.file
     if((clientfd = accept(serverfd, (struct sockaddr *)&client, &client_length)) < 0)
         die("accept", errno);
-    count = read_raw_request(clientfd, raw_request, MAX_BUF);
+    count = read_raw_request(clientfd, raw_request, MAX_HTTP_BUF);
     parse_request(&request, raw_request, count);
     // build_response(&request, &response);
     // send_response(clientfd, &response);

@@ -1,5 +1,7 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -I./include
+SHELL := /bin/bash
+
+CC = clang
+CFLAGS = -Wall -Wextra -I./include -fsanitize=address -fno-omit-frame-pointer
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -33,7 +35,28 @@ $(BUILD_DIR):
 clean:
 	rm -rf $(BUILD_DIR)
 
-run:
+run: $(TARGET)
 	@./$(TARGET)
 
-.PHONY: all clean
+# Start the server, send it the test request, then report how the server exited.
+# curl exits 52 until the server sends a response, so only the server's status counts.
+test: $(TARGET)
+	@./$(TARGET) & server=$$!; \
+	sleep 0.5; \
+	if ! kill -0 $$server 2>/dev/null; then wait $$server; exit $$?; fi; \
+	curl -s -m 5 -o /dev/null http://127.0.0.1:8000/ \
+	  -H 'User-Agent:' -H 'Accept:' \
+	  -H 'Colons: a:b: c' \
+	  -H $$'Tab:\ttabbed' \
+	  -H 'NoSpace:value' \
+	  -H 'Empty;' \
+	  -H 'After: x' \
+	  -H 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA: v' \
+	  -H 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB: v' \
+	  -H 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC: v' \
+	  -H 'DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD: v' \
+	  -H 'L: vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'; \
+	if [ $$? -eq 28 ]; then kill $$server; fi; \
+	wait $$server
+
+.PHONY: all clean run test
